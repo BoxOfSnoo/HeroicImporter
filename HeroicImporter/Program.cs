@@ -14,7 +14,7 @@ public class Program
         {
             Console.WriteLine($"Processing file: {file}");
             string jsonContent = await File.ReadAllTextAsync(file);
-            var importer = new GameImporter(config.ConnectionString);
+            var importer = new GameImporter(config.ConnectionString, config.DatabaseProvider);
             await importer.ImportGames(jsonContent);
         }
     }

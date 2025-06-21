@@ -1,4 +1,7 @@
 {
     "AppDataLibraryPath": "heroic\\store_cache",
-    "ConnectionString": "server=hostname;user=username;password=password;database=heroic_db"
+    "DatabaseProvider": "mysql",
+    "ConnectionString": "server=hostname;user=username;password=password;database=heroic_db",
+    // "DatabaseProvider": "sqlite",
+    // "ConnectionString": "Data Source=heroic_db.db;Version=3;",
 }

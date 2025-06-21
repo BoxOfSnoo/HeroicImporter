@@ -2,14 +2,18 @@ namespace HeroicImporter;
 
 using Newtonsoft.Json.Linq;
 using MySql.Data.MySqlClient;
+using System.Data.Common;
+using System.Data.SQLite;
 
-public class GameImporter(string connectionString)
+public class GameImporter(string connectionString, string provider = "mysql")
 {
+    private readonly string _provider = provider.ToLower();
+
     public async Task ImportGames(string jsonContent)
     {
         var records = ExtractGameRecords(jsonContent);
 
-        using var connection = new MySqlConnection(connectionString);
+        using var connection = CreateConnection();
         await connection.OpenAsync();
 
         foreach (var record in records)
@@ -21,39 +25,59 @@ public class GameImporter(string connectionString)
         }
     }
 
-    private static async Task<bool> RecordExists(MySqlConnection connection, GameRecord record)
+    private DbConnection CreateConnection()
+    {
+        return _provider switch
+        {
+            "mysql" => new MySqlConnection(connectionString),
+            "sqlite" => new SQLiteConnection(connectionString),
+            _ => throw new NotSupportedException($"Provider '{_provider}' is not supported.")
+        };
+    }
+
+    private string Param(string name) =>_provider == "sqlite" ? $":{name}" : $"@{name}";
+
+    private void AddParameter(DbCommand cmd, string name, object value)
+    {
+        var p = cmd.CreateParameter();
+        p.ParameterName = Param(name);
+        p.Value = value ?? DBNull.Value;
+        cmd.Parameters.Add(p);
+    }
+
+    private async Task<bool> RecordExists(DbConnection connection, GameRecord record)
     {
         using var cmd = connection.CreateCommand();
-        cmd.CommandText = "SELECT COUNT(*) FROM games WHERE title = @title AND runner = @runner";
-        cmd.Parameters.AddWithValue("@title", record.Title);
-        cmd.Parameters.AddWithValue("@runner", record.Runner);
+        cmd.CommandText = $"SELECT COUNT(*) FROM games WHERE title = {Param("title")} AND runner = {Param("runner")}";
+        AddParameter(cmd, "title", record.Title);
+        AddParameter(cmd, "runner", record.Runner);
 
         var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
         return count > 0;
     }
 
-    private static async Task InsertRecord(MySqlConnection connection, GameRecord record)
+    private async Task InsertRecord(DbConnection connection, GameRecord record)
     {
         using var cmd = connection.CreateCommand();
-        cmd.CommandText = @"
+        cmd.CommandText = $@"
                 INSERT INTO games 
                 (title, runner, can_run_offline, is_linux_native, install_size, 
                  description, short_description, store_url, genres, release_date, date_added)
                 VALUES
-                (@title, @runner, @canRunOffline, @isLinuxNative, @installSize,
-                 @description, @shortDescription, @storeUrl, @genres, @releaseDate, @dateAdded)";
+                ({Param("title")}, {Param("runner")}, {Param("canRunOffline")}, {Param("isLinuxNative")}, {Param("installSize")},
+                 {Param("description")}, {Param("shortDescription")}, {Param("storeUrl")}, {Param("genres")}, {Param("releaseDate")}, {Param("dateAdded")})";
 
-        cmd.Parameters.AddWithValue("@title", record.Title);
-        cmd.Parameters.AddWithValue("@runner", record.Runner);
-        cmd.Parameters.AddWithValue("@canRunOffline", record.CanRunOffline);
-        cmd.Parameters.AddWithValue("@isLinuxNative", record.IsLinuxNative);
-        cmd.Parameters.AddWithValue("@installSize", record.InstallSize);
-        cmd.Parameters.AddWithValue("@description", record.Description != null ? record.Description : DBNull.Value);
-        cmd.Parameters.AddWithValue("@shortDescription", record.ShortDescription != null ? record.ShortDescription : DBNull.Value);
-        cmd.Parameters.AddWithValue("@storeUrl", record.StoreUrl != null ? record.StoreUrl : DBNull.Value);
-        cmd.Parameters.AddWithValue("@genres", string.Join(",", record.Genres ?? []));
-        cmd.Parameters.AddWithValue("@releaseDate", record.ReleaseDate.HasValue ? record.ReleaseDate.Value : DBNull.Value);
-        cmd.Parameters.AddWithValue("@dateAdded", DateTime.UtcNow);
+        AddParameter(cmd, "title", record.Title);
+        AddParameter(cmd, "runner", record.Runner);
+        AddParameter(cmd, "canRunOffline", record.CanRunOffline);
+        AddParameter(cmd, "isLinuxNative", record.IsLinuxNative);
+        AddParameter(cmd, "installSize", record.InstallSize);
+        AddParameter(cmd, "description", record.Description ?? (object)DBNull.Value);
+        AddParameter(cmd, "shortDescription", record.ShortDescription ?? (object)DBNull.Value);
+        AddParameter(cmd, "storeUrl", record.StoreUrl ?? (object)DBNull.Value);
+        AddParameter(cmd, "genres", string.Join(",", record.Genres ?? []));
+        AddParameter(cmd, "releaseDate", record.ReleaseDate.HasValue ? record.ReleaseDate.Value : (object)DBNull.Value);
+        AddParameter(cmd, "dateAdded", DateTime.UtcNow);
 
         await cmd.ExecuteNonQueryAsync();
     }
