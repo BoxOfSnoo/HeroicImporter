@@ -1,0 +1,4 @@
+{
+    "AppDataLibraryPath": "heroic\\store_cache",
+    "ConnectionString": "server=hostname;user=username;password=password;database=heroic_db"
+}

@@ -1,0 +1,13 @@
+heroicImporter_config.json
+*.dll
+*.exe
+*.pdb
+*.targets
+obj
+bin
+*.user
+*.suo
+*.vsx
+*.tmp
+*.log
+*.cache
