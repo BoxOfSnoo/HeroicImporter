@@ -2,6 +2,7 @@
     "AppDataLibraryPath": "heroic\\store_cache",
     "DatabaseProvider": "mysql",
     "ConnectionString": "server=hostname;user=username;password=password;database=heroic_db",
+    // To use SQLite, uncomment below and set the path to your shared DB file (e.g. ../data/heroic.db):
     // "DatabaseProvider": "sqlite",
-    // "ConnectionString": "Data Source=heroic_db.db;Version=3;",
+    // "ConnectionString": "Data Source=../data/heroic.db;Version=3;",
 }

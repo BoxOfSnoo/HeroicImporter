@@ -8,13 +8,30 @@ public class Program
     {
         var config = await LoadConfigAsync();
 
+        // Allow DB path override for SQLite via environment variable (e.g. SQLITE_DB_PATH)
+        string connectionString = config.ConnectionString;
+        if (config.DatabaseProvider.ToLower() == "sqlite")
+        {
+            var envPath = Environment.GetEnvironmentVariable("SQLITE_DB_PATH");
+            if (!string.IsNullOrWhiteSpace(envPath))
+            {
+                // Replace Data Source in connection string
+                var builder = new System.Data.SQLite.SQLiteConnectionStringBuilder(connectionString)
+                {
+                    DataSource = envPath
+                };
+                connectionString = builder.ToString();
+                Console.WriteLine($"[INFO] Using SQLite DB file at: {envPath}");
+            }
+        }
+
         string appDataRoaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
 
         foreach (var file in Directory.GetFiles(Path.Combine(appDataRoaming, config.AppDataLibraryPath), "*_library.json"))
         {
             Console.WriteLine($"Processing file: {file}");
             string jsonContent = await File.ReadAllTextAsync(file);
-            var importer = new GameImporter(config.ConnectionString, config.DatabaseProvider);
+            var importer = new GameImporter(connectionString, config.DatabaseProvider);
             await importer.ImportGames(jsonContent);
         }
     }

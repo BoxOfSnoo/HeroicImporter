@@ -1,0 +1,2 @@
+set SQLITE_DB_PATH=../data/heroic.db
+dotnet run --project HeroicImporter/HeroicImporter.csproj
